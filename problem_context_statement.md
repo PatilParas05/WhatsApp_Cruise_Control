@@ -151,16 +151,6 @@ Before starting Session 1.1 proper:
 
 ---
 
-## Success Criteria
-
-By the end of Week 4, you will have:
-1. A working WhatsApp bot that automatically replies to incoming messages
-2. Responses that sound authentically like you (via the persona brain)
-3. Responses that reference your actual past behavior (via the history brain)
-4. A web console showing live replies with full transparency into why each reply was generated
-5. Fully open-source code you can modify, run locally, and deploy anywhere
-
----
 
 ## What This Is NOT
 
@@ -172,9 +162,3 @@ By the end of Week 4, you will have:
 
 ---
 
-## Next Steps
-
-1. Complete the environment readiness checklist above
-2. Move to Session 1.1: Draw the architecture diagram in Excalidraw
-3. Move to Session 1.2: Write your persona file by hand
-4. Proceed to Week 2 for the actual coding phase
