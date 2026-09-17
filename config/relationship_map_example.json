@@ -1,0 +1,5 @@
+{
+  "_default": "unknown",
+  "000000000000": "friend",/*replace number with actual phone number like 911234567890 for india same for Uk USA or any other country */
+  "111111111111": "friend"
+}

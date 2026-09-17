@@ -35,3 +35,6 @@ sentence_transformers/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Private relationship map
+config/relationship_map.json
