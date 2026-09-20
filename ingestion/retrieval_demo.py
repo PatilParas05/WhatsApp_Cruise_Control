@@ -1,15 +1,13 @@
 import argparse
 from contextlib import redirect_stdout
-from pathlib import Path
 from io import StringIO
+from pathlib import Path
 
-import chromadb
-from sentence_transformers import SentenceTransformer
+from ingestion.retrieval import retrieve_similar
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_FILE = PROJECT_ROOT / "data" / "retrieval_demo_output.txt"
-MODEL_NAME = "paraphrase-multilingual-mpnet-base-v2"
 
 RELATIONSHIPS = [
     "family",
@@ -20,19 +18,19 @@ RELATIONSHIPS = [
 
 SAMPLE_QUERIES = {
     "family": [
-        "Are you coming home today?",
         "Have you eaten?",
+        "Are you coming home today?",
         "What are you doing?",
     ],
     "friend": [
-        "Bro, are you coming to college?",
+        "Are you coming to college?",
         "What are you doing today?",
         "Send me the details.",
     ],
     "professional": [
         "Please share the project update.",
         "Can we schedule a meeting?",
-        "What is the status of the task?",
+        "What is the task status?",
     ],
     "unknown": [
         "Who is this?",
@@ -43,144 +41,98 @@ SAMPLE_QUERIES = {
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Search relationship-specific WhatsApp history."
-    )
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--relationship",
-        default="all",
         choices=["all", *RELATIONSHIPS],
-        help="Relationship to search. Defaults to all.",
+        default="all",
     )
-    parser.add_argument(
-        "--query",
-        help="Custom query. If omitted, built-in queries are used.",
-    )
+    parser.add_argument("--query")
     return parser.parse_args()
 
 
-def search_collection(collection, model, query):
-    query_embedding = model.encode(
-        [query],
-        convert_to_numpy=True,
-        show_progress_bar=False,
-    )[0].tolist()
-
-    return collection.query(
-        query_embeddings=[query_embedding],
-        n_results=min(3, collection.count()),
-        include=["documents", "metadatas", "distances"],
-    )
-
-
-def print_results(relationship, query, results):
-    print("---")
-    print(f"Relationship: {relationship}")
-    print(f"Query: {query}")
-    print("---")
-
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
-    distances = results.get("distances", [[]])[0]
-
-    for index, document in enumerate(documents, start=1):
-        metadata = metadatas[index - 1] or {}
-        distance = distances[index - 1]
-
-        print(f"Result {index}")
-        print(f"Distance: {distance:.6f}")
-        print(f"Incoming message: {document}")
-        print(f"My reply: {metadata.get('my_reply', '')}")
-        print(f"Timestamp: {metadata.get('timestamp', '')}")
-        print("---")
-
-
-def main():
+def run_demo():
     args = parse_args()
-
     relationships = (
         RELATIONSHIPS
         if args.relationship == "all"
         else [args.relationship]
     )
 
-    print(f"Loading embedding model: {MODEL_NAME}")
-    model = SentenceTransformer(MODEL_NAME)
-
-    print("Connecting to ChromaDB at http://localhost:8000")
-    client = chromadb.HttpClient(host="localhost", port=8000)
-
-    distance_results = {}
+    distances_by_relationship = {}
 
     for relationship in relationships:
-        collection_name = f"history_{relationship}"
-        collection = client.get_or_create_collection(
-            name=collection_name
-        )
-
-        count = collection.count()
-
-        if count == 0:
-            print(
-                f"⚠ no data in {collection_name}, skipping"
-            )
-            distance_results[relationship] = []
-            continue
-
         queries = (
             [args.query]
             if args.query
             else SAMPLE_QUERIES[relationship]
         )
 
-        relationship_distances = []
+        all_distances = []
 
         for query in queries:
-            results = search_collection(collection, model, query)
-            print_results(relationship, query, results)
+            results = retrieve_similar(relationship, query)
 
-            distances = results.get("distances", [[]])[0]
-            relationship_distances.extend(distances)
+            if not results:
+                print(
+                    f"⚠ no data in history_{relationship}, "
+                    "or no results; skipping"
+                )
+                continue
 
-        distance_results[relationship] = relationship_distances
+            print("---")
+            print(f"Relationship: {relationship}")
+            print(f"Query: {query}")
+            print("---")
+
+            for index, result in enumerate(results, start=1):
+                print(f"Result {index}")
+                print(f"Distance: {result['distance']:.6f}")
+                print(f"Their message: {result['their_message']}")
+                print(f"My reply: {result['my_reply']}")
+                print("---")
+
+            all_distances.extend(
+                result["distance"]
+                for result in results
+            )
+
+        distances_by_relationship[relationship] = all_distances
 
     print("\nSanity checks")
     print("=============")
 
-    for relationship in relationships:
-        distances = distance_results[relationship]
-
+    for relationship, distances in distances_by_relationship.items():
         if not distances:
-            print(
-                f"{relationship}: skipped — no distances available"
-            )
+            print(f"{relationship}: skipped — no distances available")
             continue
 
-        monotonic = all(
+        increasing = all(
             left <= right
             for left, right in zip(distances, distances[1:])
         )
 
-        if monotonic:
-            print(
-                f"{relationship}: distances monotonically increasing "
-                "✅ expected"
-            )
-        else:
-            print(
-                f"{relationship}: distances not globally monotonic "
-                "⚠ worth a second look"
-            )
+        status = "✅ expected" if increasing else "⚠ worth a second look"
+        print(
+            f"{relationship}: distances "
+            f"{'monotonically increasing' if increasing else 'not globally monotonic'} "
+            f"{status}"
+        )
 
 
-def run_and_save():
+def main():
     captured = StringIO()
 
-    with redirect_stdout(captured):
-        main()
+    try:
+        with redirect_stdout(captured):
+            run_demo()
+    except Exception:
+        output = captured.getvalue()
+        print(output, end="")
+        raise
 
     output = captured.getvalue()
-    print(output)
+    print(output, end="")
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(output, encoding="utf-8")
@@ -188,4 +140,4 @@ def run_and_save():
 
 
 if __name__ == "__main__":
-    run_and_save()
+    main()
