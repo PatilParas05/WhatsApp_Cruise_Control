@@ -2,6 +2,7 @@ import argparse
 import json
 import re
 from pathlib import Path
+from config.constants import ONE_WORD_ACKS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -36,8 +37,18 @@ FILTER_SUBSTRINGS = (
 )
 
 ACKNOWLEDGEMENTS = {
-    "ok", "okay", "k", "kk", "haan", "hmm",
-    "thanks", "thank you", "cool", "nice",
+       "haa",
+       "ok",
+       "okay",
+       "barr",
+       "thik",
+       "yup",
+       "haan",
+       "yes",
+       "thanks",
+       "thank you",
+       "cool",
+       "nice",
 }
 
 MESSAGE_PATTERN = re.compile(
@@ -59,7 +70,7 @@ def is_filtered(text):
 def is_acknowledgement(text):
     cleaned = text.strip().casefold()
     cleaned = re.sub(r"[.!?,;:]+$", "", cleaned).strip()
-    return cleaned in ACKNOWLEDGEMENTS
+    return cleaned in ONE_WORD_ACKS
 
 
 def conversation_id(filename):
