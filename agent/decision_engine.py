@@ -9,15 +9,10 @@ from dotenv import load_dotenv
 from google import genai
 
 from config.constants import ONE_WORD_ACKS
-
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-LOG_DIR = PROJECT_ROOT / "logs"
-DECISION_LOG = LOG_DIR / "decision_log.jsonl"
-
-VALID_LABELS = {
-    "safe_to_auto_reply",
-    "needs_human_money_or_serious",
+MEDIA_ACKS = {
+    "image": "Got your image, will look at it properly and get back to you 🙂",
+    "audio": "Got your voice note, will listen to it properly and get back to you 🙂",
+    "video": "Got your video, will look at it properly and get back to you 🙂",
 }
 
 logging.basicConfig(level=logging.WARNING)
@@ -147,6 +142,26 @@ def should_reply(
             relationship,
             "low-signal ack, no reply needed",
         )
+
+    if (
+        message_type in MEDIA_ACKS
+        and not text.strip()
+    ):
+        if relationship in {"group", "unknown"}:
+            return _ignore(
+                message,
+                relationship,
+                "media-only from unallowlisted sender or group",
+            )
+
+        message["reply"] = MEDIA_ACKS[message_type]
+        _log_decision(
+            message,
+            relationship,
+            "reply",
+            "media_ack",
+        )
+        return True, "media_ack"
 
     intent = _classify_intent(text)
 
