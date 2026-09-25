@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 
 const axios = require("axios");
@@ -8,25 +9,86 @@ const {
   DisconnectReason,
 } = require("@whiskeysockets/baileys");
 
-// flip to false only for controlled testing against a known consenting contact — Session 4.2 replaces this with a proper toggle.
-const DRY_RUN = true;
-
-const AUTH_DIR = path.resolve(process.cwd(), "auth_info_baileys");
+const PROJECT_ROOT = path.resolve(__dirname, "..");
+const AUTH_DIR = path.join(PROJECT_ROOT, "auth_info_baileys");
+const SETTINGS_FILE = path.join(PROJECT_ROOT, "config", "settings.json");
+const RELATIONSHIP_MAP_FILE = path.join(
+  PROJECT_ROOT,
+  "config",
+  "relationship_map.json"
+);
+const KILL_SWITCH_FILE = path.join(PROJECT_ROOT, "kill_switch.flag");
 const BRIDGE_URL = "http://localhost:5001/process";
 
+const DEFAULT_SETTINGS = {
+  dry_run: true,
+  min_delay_seconds: 3,
+  max_delay_seconds: 12,
+};
 
-function randomDelay() {
-  return Math.floor(Math.random() * 5000) + 3000;
+function readSettings() {
+  try {
+    const settings = JSON.parse(
+      fs.readFileSync(SETTINGS_FILE, "utf8")
+    );
+
+    return {
+      ...DEFAULT_SETTINGS,
+      ...settings,
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
 }
 
+function enforceAllowlist(jid) {
+  if (typeof jid !== "string" || !jid.trim()) {
+    return false;
+  }
 
-function getMessageContent(message) {
-  return message.message || {};
+  const number = jid.split("@", 1)[0].trim();
+
+  try {
+    const relationshipMap = JSON.parse(
+      fs.readFileSync(RELATIONSHIP_MAP_FILE, "utf8")
+    );
+
+    return (
+      Boolean(number) &&
+      Object.prototype.hasOwnProperty.call(
+        relationshipMap,
+        number
+      ) &&
+      relationshipMap[number] !== "unknown"
+    );
+  } catch {
+    return false;
+  }
 }
 
+function randomDelay(minSeconds, maxSeconds) {
+  const min = Number(minSeconds);
+  const max = Number(maxSeconds);
+
+  if (
+    !Number.isFinite(min) ||
+    !Number.isFinite(max) ||
+    min < 0 ||
+    max < min
+  ) {
+    return randomDelay(
+      DEFAULT_SETTINGS.min_delay_seconds,
+      DEFAULT_SETTINGS.max_delay_seconds
+    );
+  }
+
+  return Math.floor(
+    Math.random() * ((max - min) * 1000 + 1)
+  ) + min * 1000;
+}
 
 function extractMessageData(message) {
-  const content = getMessageContent(message);
+  const content = message.message || {};
   const extended = content.extendedTextMessage;
   const mediaType = ["image", "video", "audio"].find(
     (type) => content[`${type}Message`]
@@ -51,19 +113,22 @@ function extractMessageData(message) {
     (mediaType ? content[`${mediaType}Message`] : null) ||
     content;
 
-  const isForwarded =
-    sourceMessage?.contextInfo?.isForwarded === true;
-
   return {
     jid: message.key.remoteJid || "",
     text,
     message_type: messageType,
-    is_forwarded: isForwarded,
+    is_forwarded: sourceMessage?.contextInfo?.isForwarded === true,
   };
 }
 
-
 async function processIncoming(sock, message) {
+  const settings = readSettings();
+
+  if (fs.existsSync(KILL_SWITCH_FILE)) {
+    console.log("[KILL SWITCH] active, skipping all processing");
+    return;
+  }
+
   if (message.key?.fromMe) {
     console.log("[SKIP] own message");
     return;
@@ -84,7 +149,7 @@ async function processIncoming(sock, message) {
 
     console.log(
       `[DECISION] ${payload.jid}: ` +
-      `${result.should_reply ? "reply" : "ignore"} — ${result.reason}`
+        `${result.should_reply ? "reply" : "ignore"} — ${result.reason}`
     );
 
     if (
@@ -98,27 +163,34 @@ async function processIncoming(sock, message) {
 
     const reply = result.reply.trim();
 
-    if (DRY_RUN) {
+    if (settings.dry_run === true) {
       console.log(`[DRY_RUN] would reply to ${payload.jid}: ${reply}`);
       return;
     }
 
-    const delay = randomDelay();
-    console.log(`[SEND] waiting ${delay}ms before replying`);
+    const delay = randomDelay(
+      settings.min_delay_seconds,
+      settings.max_delay_seconds
+    );
 
+    console.log(`[SEND] waiting ${delay}ms before replying`);
     await new Promise((resolve) => setTimeout(resolve, delay));
+
+    if (!enforceAllowlist(payload.jid)) {
+      console.log("[BLOCKED] failed independent allowlist check");
+      return;
+    }
 
     await sock.sendMessage(payload.jid, { text: reply });
     console.log(`[SEND] reply sent to ${payload.jid}`);
   } catch (error) {
     console.log(
-      `[DECISION] bridge request failed: ${
+      `[ROUTE] bridge request failed: ${
         error.response?.data || error.message
       }`
     );
   }
 }
-
 
 async function startWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -143,9 +215,7 @@ async function startWhatsApp() {
     }
 
     if (connection === "close") {
-      const statusCode =
-        lastDisconnect?.error?.output?.statusCode;
-
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect =
         statusCode !== DisconnectReason.loggedOut;
 
@@ -173,8 +243,13 @@ async function startWhatsApp() {
   });
 }
 
-
 startWhatsApp().catch((error) => {
   console.error("[ROUTE] WhatsApp startup failed:", error);
   process.exitCode = 1;
 });
+
+const mockSock = {
+  sendMessage: async (jid, message) => {
+    console.log("[MOCK SEND]", jid, message);
+  },
+};
