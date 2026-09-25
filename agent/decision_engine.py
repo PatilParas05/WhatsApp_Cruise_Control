@@ -18,6 +18,10 @@ MEDIA_ACKS = {
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+LOG_DIR = PROJECT_ROOT / "logs"
+DECISION_LOG = LOG_DIR / "decision_log.jsonl"
+
 load_dotenv(PROJECT_ROOT / ".env")
 _client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
