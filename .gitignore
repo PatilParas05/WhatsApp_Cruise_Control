@@ -39,3 +39,7 @@ Thumbs.db
 # Private relationship map
 config/relationship_map.json
 config/relationship_map.json
+
+config/settings.json
+logs/
+*.pdf
