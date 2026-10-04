@@ -7,6 +7,23 @@
 ![WhatsApp](https://img.shields.io/badge/WhatsApp-Baileys-25D366?logo=whatsapp&logoColor=white)
 ![Status](https://img.shields.io/badge/status-local%20prototype-orange)
 
+## 📚 Step-by-step file creation guide
+
+New to the project? Follow the dedicated guide below to create the folders and files in the recommended order, understand what each file does, and verify every stage before continuing:
+
+👉 **[Open the File-by-File Build Guide](README_FILE_BY_FILE.md)**
+
+The guide covers:
+
+- Windows PowerShell setup commands
+- Persona Brain creation
+- WhatsApp export processing
+- History Brain and ChromaDB setup
+- Relationship-map configuration
+- Router and safety-engine creation
+- Flask bridge, Streamlit console, and Baileys integration
+- Testing checkpoints and final verification
+
 ## ⚠️ Read this first
 
 This project automates WhatsApp Web through the Baileys library. Automation may violate WhatsApp's Terms of Service and can result in an account restriction or ban.
@@ -115,6 +132,7 @@ flowchart LR
 ├── whatsapp/
 │   └── baileys_client.js            WhatsApp Web client and sender
 ├── problem_context_statement.md     Design goals and project rationale
+├── README_FILE_BY_FILE.md           Beginner-friendly file creation guide
 ├── package.json                     Node.js dependencies
 ├── package-lock.json                Locked Node.js dependency versions
 ├── Architecture.png                 Architecture reference image
@@ -610,6 +628,6 @@ git status
 
 ## License and project status
 
- Licensed under the  [Apache License 2.0](./LICENSE)
+Licensed under the [Apache License 2.0](./LICENSE).
 
 For the original design rationale and four-stage project plan, see [`problem_context_statement.md`](problem_context_statement.md).
