@@ -610,6 +610,6 @@ git status
 
 ## License and project status
 
-No license file is currently included. Treat this as a private/local prototype unless the repository owner adds explicit licensing and deployment guidance.
+ Licensed under the  [Apache License 2.0](./LICENSE)
 
 For the original design rationale and four-stage project plan, see [`problem_context_statement.md`](problem_context_statement.md).
