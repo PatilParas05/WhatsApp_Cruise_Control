@@ -568,6 +568,19 @@ Make sure ChromaDB is running on port 8000 before starting the bridge or running
 Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue
 ```
 
+### JID shows `@lid` or WhatsApp does not connect to a contact
+
+Baileys may show a WhatsApp **LID** such as `129579851210854@lid` instead of a phone-number JID. Add the identifier before `@lid` to your local `config\relationship_map.json`:
+
+```json
+{
+  "_default": "unknown",
+  "129579851210854": "friend"
+}
+```
+
+Restart the Baileys client after saving the file. Keep the exact identifier shown in the terminal, and never commit the real relationship map. If the identifier changes, update the map again.
+
 ### No pairs were generated
 
 Use the exact sender name from the export. The parser prints a warning when no matching messages are found:
