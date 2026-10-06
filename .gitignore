@@ -43,3 +43,7 @@ config/relationship_map.json
 config/settings.json
 logs/
 *.pdf
+
+# WhatsApp auth and flags
+auth_info_baileys/
+*.flag

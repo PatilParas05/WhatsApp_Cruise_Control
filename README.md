@@ -505,7 +505,9 @@ While the flag exists, the Baileys client skips all message processing. Remove i
 Remove-Item .\kill_switch.flag -Force
 ```
 
-## Testing and diagnostics
+## Testing, simulation, and diagnostics
+
+### Automated Tests
 
 Run router tests:
 
@@ -530,6 +532,28 @@ Validate the relationship map:
 ```powershell
 python .\agent\validate_relationship_map.py
 ```
+
+### Interactive Pipeline Simulator (No Secondary Phone Required)
+
+If you do not have a second WhatsApp number or want to demonstrate the AI pipeline safely without linking Baileys, use the built-in Streamlit Message Simulator:
+
+1. Ensure **ChromaDB** (`chroma run --path .\chroma_data --port 8000`) and **Flask bridge** (`python -m agent.bridge`) are running.
+2. Start the simulator:
+
+```powershell
+python -m streamlit run console\simulator.py --server.port 8503
+```
+
+3. Open `http://localhost:8503` in your browser.
+4. **How it works & what to configure:**
+   - **Sender:** Choose from contacts defined in `config/relationship_map.json` or enter any custom test number.
+   - **Relationship Mapping:** Edit `config/relationship_map.json` to configure test numbers as `friend`, `family`, `professional`, or `unknown`.
+   - **Safety Rules & Persona:** Customize persona tone, hinglish ratio, and safety constraints in `persona/persona.json`.
+   - **Message Options:** Send text messages, simulate media (image, audio, video), or flag messages as forwarded to test gate filtering.
+   - **Quick Presets:** Click pre-configured prompts to test safety gates, intent classification, and retrieval grounding.
+   - **Live Feed Sync:** All simulated messages will also appear in real-time in the Live Console (`http://localhost:8501`).
+
+### Diagnostics and logs
 
 Inspect recent decision and console records:
 

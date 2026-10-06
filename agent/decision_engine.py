@@ -15,6 +15,11 @@ MEDIA_ACKS = {
     "video": "Got your video, will look at it properly and get back to you 🙂",
 }
 
+VALID_LABELS = {
+    "safe_to_auto_reply",
+    "needs_human_money_or_serious",
+}
+
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 

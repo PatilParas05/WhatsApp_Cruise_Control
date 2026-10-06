@@ -1,6 +1,6 @@
 import json
 
-from router import resolve_relationship
+from agent.router import resolve_relationship
 
 
 def write_map(tmp_path, data):
