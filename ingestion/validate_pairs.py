@@ -2,9 +2,11 @@ import json
 import random
 import re
 from collections import Counter
+from pathlib import Path
 
 
-INPUT_FILE = "data/processed_pairs.jsonl"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+INPUT_DIR = PROJECT_ROOT / "data" / "processed_pairs"
 NOISE_TERMS = ("omitted", "<media", "deleted")
 
 
@@ -26,19 +28,25 @@ def near_identical(left, right):
 def main():
     pairs = []
     issues = []
+    files = sorted(INPUT_DIR.glob("*.jsonl"))
 
-    try:
-        with open(INPUT_FILE, "r", encoding="utf-8") as file:
+    if not files:
+        print(f"FAIL: No processed pair files found in {INPUT_DIR} (*.jsonl)")
+        return
+
+    for file_path in files:
+        with file_path.open("r", encoding="utf-8") as file:
             for line_number, line in enumerate(file, 1):
+                if not line.strip():
+                    continue
+
                 try:
                     pair = json.loads(line)
                     pairs.append(pair)
                 except json.JSONDecodeError:
-                    issues.append(f"Invalid JSON on line {line_number}")
-
-    except FileNotFoundError:
-        print(f"FAIL: File not found: {INPUT_FILE}")
-        return
+                    issues.append(
+                        f"Invalid JSON in {file_path} on line {line_number}"
+                    )
 
     counts = Counter(pair.get("conversation_id", "unknown") for pair in pairs)
 

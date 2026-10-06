@@ -183,10 +183,8 @@ python -m venv .venv
 
 ### 3. Install Python dependencies
 
-This repository does not currently include a `requirements.txt` or `pyproject.toml`, so install the Python packages directly:
-
 ```powershell
-python -m pip install chromadb sentence-transformers google-genai python-dotenv flask streamlit streamlit-autorefresh pytest
+python -m pip install -r requirements.txt
 ```
 
 ### 4. Install Node.js dependencies
@@ -265,10 +263,11 @@ Generated data is written under:
 
 ```text
 data\processed_pairs\
-data\processed_pairs.jsonl
 ```
 
-The current parser writes per-conversation JSONL files under `data\processed_pairs\`, while `ingestion\embed_to_chroma.py` reads `data\processed_pairs.jsonl`. If your workflow produces only per-conversation files, combine or export them into the aggregate path expected by the embedding script before running embeddings.
+`ingestion\parse_export.py` writes one JSONL file per conversation under `data\processed_pairs\`.
+
+`ingestion\embed_to_chroma.py` reads all JSONL files from `data\processed_pairs\` (sorted deterministically) when creating embeddings.
 
 Validate the generated data:
 

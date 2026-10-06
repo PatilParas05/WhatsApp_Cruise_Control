@@ -3,12 +3,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
-import chromadb
-from sentence_transformers import SentenceTransformer
-
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PAIRS_FILE = PROJECT_ROOT / "data" / "processed_pairs.jsonl"
+PAIRS_DIR = PROJECT_ROOT / "data" / "processed_pairs"
 RELATIONSHIP_MAP_FILE = (
     PROJECT_ROOT / "config" / "contact_relationship_map.json"
 )
@@ -37,8 +33,9 @@ def normalize_relationship(value):
     return value if value in RELATIONSHIPS else "unknown"
 
 
-def stable_id(pair, index):
+def stable_id(pair, index, source_file):
     raw_value = (
+        f"{source_file}|"
         f"{pair.get('conversation_id', '')}|"
         f"{pair.get('timestamp', '')}|"
         f"{index}"
@@ -46,27 +43,47 @@ def stable_id(pair, index):
     return hashlib.sha256(raw_value.encode("utf-8")).hexdigest()
 
 
-def load_pairs():
+def pair_files():
+    return sorted(PAIRS_DIR.glob("*.jsonl"))
+
+
+def load_pairs(files):
     pairs = []
 
-    with PAIRS_FILE.open("r", encoding="utf-8") as file:
-        for line_number, line in enumerate(file, 1):
-            if not line.strip():
-                continue
+    for file_path in files:
+        pair_index = 0
 
-            try:
-                pairs.append(json.loads(line))
-            except json.JSONDecodeError as error:
-                raise SystemExit(
-                    f"Invalid JSON on line {line_number}: {error}"
-                ) from error
+        with file_path.open("r", encoding="utf-8") as file:
+            for line_number, line in enumerate(file, 1):
+                if not line.strip():
+                    continue
+
+                try:
+                    pair = json.loads(line)
+                except json.JSONDecodeError as error:
+                    raise SystemExit(
+                        f"Invalid JSON in {file_path} on line "
+                        f"{line_number}: {error}"
+                    ) from error
+
+                pairs.append(
+                    {
+                        "pair": pair,
+                        "source_file": file_path.name,
+                        "pair_index": pair_index,
+                    }
+                )
+                pair_index += 1
 
     return pairs
 
 
 def main():
-    if not PAIRS_FILE.exists():
-        raise SystemExit(f"Pairs file not found: {PAIRS_FILE}")
+    files = pair_files()
+    if not files:
+        raise SystemExit(
+            f"No processed pair files found in {PAIRS_DIR} (*.jsonl)"
+        )
 
     if not RELATIONSHIP_MAP_FILE.exists():
         raise SystemExit(
@@ -79,7 +96,19 @@ def main():
     ) as file:
         relationship_map = json.load(file)
 
-    pairs = load_pairs()
+    pairs = load_pairs(files)
+    if not pairs:
+        raise SystemExit(
+            f"No conversation pairs found across files in {PAIRS_DIR}"
+        )
+
+    print(
+        f"Loaded {len(files)} file(s) and {len(pairs)} pairs "
+        f"from {PAIRS_DIR}"
+    )
+
+    import chromadb
+    from sentence_transformers import SentenceTransformer
 
     print(f"Loading embedding model: {MODEL_NAME}")
     model = SentenceTransformer(MODEL_NAME)
@@ -100,7 +129,8 @@ def main():
         for relationship in RELATIONSHIPS
     }
 
-    for index, pair in enumerate(pairs):
+    for index, item in enumerate(pairs):
+        pair = item["pair"]
         conversation_id = str(pair.get("conversation_id", ""))
         relationship = normalize_relationship(
             relationship_map.get(conversation_id, "unknown")
@@ -113,7 +143,11 @@ def main():
 
         batches[relationship].append(
             {
-                "id": stable_id(pair, index),
+                "id": stable_id(
+                    pair,
+                    item["pair_index"],
+                    item["source_file"],
+                ),
                 "document": incoming_message,
                 "metadata": {
                     "conversation_id": conversation_id,

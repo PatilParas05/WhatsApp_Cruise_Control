@@ -7,7 +7,6 @@ from config.constants import ONE_WORD_ACKS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RAW_EXPORT_DIR = PROJECT_ROOT / "data" / "raw_export"
-OUTPUT_FILE = PROJECT_ROOT / "data" / "processed_pairs.jsonl"
 PROCESSED_PAIRS_DIR = PROJECT_ROOT / "data" / "processed_pairs"
 
 MAX_PAIRS_PER_CONVERSATION = 500
