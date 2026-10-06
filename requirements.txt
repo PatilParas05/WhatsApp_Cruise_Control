@@ -1,0 +1,8 @@
+chromadb
+sentence-transformers
+google-genai
+python-dotenv
+flask
+streamlit
+streamlit-autorefresh
+pytest

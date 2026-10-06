@@ -3,36 +3,41 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PAIRS_FILE = PROJECT_ROOT / "data" / "processed_pairs.jsonl"
+PAIRS_DIR = PROJECT_ROOT / "data" / "processed_pairs"
 MAP_FILE = PROJECT_ROOT / "config" / "contact_relationship_map.json"
 
 
 def load_conversation_ids():
     conversation_ids = set()
+    files = sorted(PAIRS_DIR.glob("*.jsonl"))
 
-    with PAIRS_FILE.open("r", encoding="utf-8") as file:
-        for line_number, line in enumerate(file, 1):
-            if not line.strip():
-                continue
+    if not files:
+        raise SystemExit(
+            f"No processed pair files found in {PAIRS_DIR} (*.jsonl)"
+        )
 
-            try:
-                pair = json.loads(line)
-            except json.JSONDecodeError as error:
-                raise SystemExit(
-                    f"Invalid JSON on line {line_number}: {error}"
-                )
+    for file_path in files:
+        with file_path.open("r", encoding="utf-8") as file:
+            for line_number, line in enumerate(file, 1):
+                if not line.strip():
+                    continue
 
-            conversation_id = pair.get("conversation_id")
-            if conversation_id:
-                conversation_ids.add(conversation_id)
+                try:
+                    pair = json.loads(line)
+                except json.JSONDecodeError as error:
+                    raise SystemExit(
+                        f"Invalid JSON in {file_path} on line "
+                        f"{line_number}: {error}"
+                    )
+
+                conversation_id = pair.get("conversation_id")
+                if conversation_id:
+                    conversation_ids.add(conversation_id)
 
     return sorted(conversation_ids)
 
 
 def main():
-    if not PAIRS_FILE.exists():
-        raise SystemExit(f"Pairs file not found: {PAIRS_FILE}")
-
     conversation_ids = load_conversation_ids()
 
     if MAP_FILE.exists():
